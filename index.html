@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32 BLE Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+      background: #f4f4f4;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    #status {
+      margin: 15px 0;
+      font-weight: bold;
+      color: #d32f2f;
+    }
+    button {
+      padding: 20px;
+      font-size: 18px;
+      margin: 12px;
+      width: 240px;
+      border: none;
+      border-radius: 10px;
+      background-color: #2196f3;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #1976d2;
+    }
+    #ble-controls button {
+      background-color: #4caf50;
+    }
+    #ble-controls button:hover {
+      background-color: #388e3c;
+    }
+  </style>
+</head>
+<body>
+
+<h2>ESP32 BLE Control Panel</h2>
+<div id="status">BLE State: DISCONNECTED</div>
+
+<div id="ble-controls">
+  <button onclick="connectBLE()">🔌 Connect to ESP32</button>
+  <button onclick="disconnectBLE()">❌ Disconnect</button>
+</div>
+
+<hr>
+
+<button onclick="toggleRelay1()">Toggle Relay 1</button><br>
+<button onclick="toggleRelay2()">Toggle Relay 2</button><br>
+<button onclick="activatePowerSaving()">Power Saving Mode</button><br>
+
+<script>
+  let bleDevice;
+  let bleServer;
+  let bleService;
+  let bleCharacteristic;
+
+  const serviceUuid = '19b10000-e8f2-537e-4f6c-d104768a1214';
+  const characteristicUuid = '19b10002-e8f2-537e-4f6c-d104768a1214';
+
+  function updateStatus(connected) {
+    document.getElementById("status").textContent = connected ? "BLE State: CONNECTED" : "BLE State: DISCONNECTED";
+    document.getElementById("status").style.color = connected ? "green" : "#d32f2f";
+  }
+
+  async function connectBLE() {
+    try {
+      bleDevice = await navigator.bluetooth.requestDevice({ filters: [{ services: [serviceUuid] }] });
+      bleServer = await bleDevice.gatt.connect();
+      bleService = await bleServer.getPrimaryService(serviceUuid);
+      bleCharacteristic = await bleService.getCharacteristic(characteristicUuid);
+
+      bleDevice.ongattserverdisconnected = onDisconnected;
+      updateStatus(true);
+      alert("✅ Connected to ESP32 BLE device");
+    } catch (error) {
+      alert("❌ Connection failed: " + error);
+    }
+  }
+
+  function onDisconnected() {
+    bleDevice = null;
+    updateStatus(false);
+    alert("❗ BLE device disconnected");
+  }
+
+  function disconnectBLE() {
+    if (bleDevice && bleDevice.gatt.connected) {
+      bleDevice.gatt.disconnect();
+    }
+  }
+
+  async function sendCommand(value) {
+    if (!bleCharacteristic) {
+      alert("Not connected to a BLE device");
+      return;
+    }
+    const encoder = new TextEncoder();
+    await bleCharacteristic.writeValue(encoder.encode(value));
+  }
+
+  function toggleRelay1() {
+    sendCommand('1');
+  }
+
+  function toggleRelay2() {
+    sendCommand('2');
+  }
+
+  function activatePowerSaving() {
+    sendCommand('3');
+  }
+</script>
+
+</body>
+</html>
